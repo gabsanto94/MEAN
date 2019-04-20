@@ -1,8 +1,21 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose = require("mongoose");
+
+// Model
+const Post = require("./models/post");
 
 // express app - big chain of middleware
 const app = express();
+
+// connect to DB
+mongoose.connect("mongodb+srv://gabo:gabo@cluster0-orqtt.mongodb.net/test?retryWrites=true")
+  .then( () => {
+    console.log("Connected to Database!");
+  })
+  .catch(err => {
+    console.error(err);
+  });
 
 // filtering
 app.use(bodyParser.json());
@@ -17,26 +30,52 @@ app.use( (req, res, next) => {
 });
 
 app.post("/api/posts", (req, res, next) => {
-  const post = req.body;
-  console.log(post);
-  // created 201
-  res.status(201).json({
-    message: 'SUCCESS CREATED'
+  const post = new Post({
+    title: req.body.title,
+    content: req.body.content
   });
+
+  // store in database
+  post.save()  // for every model we get a save method to store in db (creates right query to insert to db)
+    .then(result => {
+      // created 201
+      res.status(201).json({
+        message: 'SUCCESS CREATED',
+        postId: result.id
+      });
+    });
 });
 
 // first argument is the filtering
 // uses middleware in the app: MIDDLEWARE => FUNNEL
 app.get('/api/posts', (req, res, next) => {
-  const posts = [
-    { id: "1", title: "First Title", content: "This is coming from the server"},
-    { id: "2", title: "First Title1", content: "This is coming from the server1"},
-    { id: "3", title: "First Title2", content: "This is coming from the server2"}
-  ];
-  res.status(200).json({
-    message: "SUCCESS",
-    posts: posts
-  });
+
+  // return all the entries
+  // configure the results
+  // function will trigger once done - CB
+  Post.find()
+    .then(documents => {
+      res.status(200).json({
+        message: "SUCCESS",
+        posts: documents
+      });
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+
+// to access the params: req.params.id
+app.delete("/api/posts/:id", (req, res, next) => {
+  Post.deleteOne({
+    _id: req.params.id
+  })
+    .then(result => {
+      console.log(result);
+      res.status(200).json({
+        message: "post deleted"
+      });
+    })
 });
 
 // exporting the entire express app ?
